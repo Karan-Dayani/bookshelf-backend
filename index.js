@@ -21,10 +21,10 @@ const pool = new Pool({
 app.get("/", async (req, res) => {
   try {
     const client = await pool.connect();
-    const result = await client.query("SELECT * FROM cars");
+    const result = await client.query(
+      "SELECT * FROM books ORDER BY id LIMIT 10 OFFSET 0"
+    );
     client.release();
-    console.log("Data:", result.rows);
-
     res.json(result.rows);
   } catch (error) {
     console.error("Database error:", error);
