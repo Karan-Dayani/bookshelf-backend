@@ -32,6 +32,41 @@ app.get("/", async (req, res) => {
   }
 });
 
+app.get("/getUser/:email", async (req, res) => {
+  const email = req.params.email;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(`SELECT * FROM users WHERE email = $1`, [
+      email,
+    ]);
+    client.release();
+    if (result.rows.length === 0) {
+      res.json(null);
+    } else {
+      res.json(result.rows);
+    }
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/createUser", async (req, res) => {
+  const { data } = req.body;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      `INSERT INTO users (name, email, role) VALUES ($1,$2,$3)`,
+      [data.name, data.email, data.role]
+    );
+    client.release();
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.listen(port, () => {
   console.log("Server started at", port);
 });
