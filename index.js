@@ -21,12 +21,21 @@ const pool = new Pool({
 app.get("/count/:table", async (req, res) => {
   const table = req.params.table;
   const genre = req.query.genre === "Filter" ? null : req.query.genre;
+  const search = req.query.search === "" ? null : req.query.search;
   try {
     const client = await pool.connect();
     let result;
-    if (genre) {
+    if (genre && !search) {
       result = await client.query(
         `SELECT COUNT(*) FROM ${table} WHERE genre='${genre}'`
+      );
+    } else if (search && !genre) {
+      result = await client.query(
+        `SELECT COUNT(*) FROM ${table} WHERE title ~* '${search}'`
+      );
+    } else if (search && genre) {
+      result = await client.query(
+        `SELECT COUNT(*) FROM ${table} WHERE title ~* '${search}' AND genre='${genre}'`
       );
     } else {
       result = await client.query(`SELECT COUNT(*) FROM ${table}`);
@@ -55,15 +64,26 @@ app.get("/getBooks", async (req, res) => {
   const limit = req.query.limit || 9;
   const page = req.query.page || 1;
   const genre = req.query.genre === "Filter" ? null : req.query.genre;
+  const search = req.query.search === "" ? null : req.query.search;
   const offset = (page - 1) * limit;
 
   try {
     const client = await pool.connect();
     let result;
-    if (genre) {
+    if (genre && !search) {
       result = await client.query(
         `SELECT * FROM books WHERE genre=$3 LIMIT $1 OFFSET $2`,
         [limit, offset, genre]
+      );
+    } else if (search && !genre) {
+      result = await client.query(
+        `SELECT * FROM books WHERE title ~* $3 LIMIT $1 OFFSET $2`,
+        [limit, offset, search]
+      );
+    } else if (genre && search) {
+      result = await client.query(
+        `SELECT * FROM books WHERE title ~* $3 AND genre=$4 LIMIT $1 OFFSET $2`,
+        [limit, offset, search, genre]
       );
     } else {
       result = await client.query(
