@@ -18,12 +18,59 @@ const pool = new Pool({
   database: process.env.DB_NAME,
 });
 
-app.get("/", async (req, res) => {
+app.get("/count/:table", async (req, res) => {
+  const table = req.params.table;
+  const genre = req.query.genre === "Filter" ? null : req.query.genre;
   try {
     const client = await pool.connect();
-    const result = await client.query(
-      "SELECT * FROM books ORDER BY id LIMIT 10 OFFSET 0"
-    );
+    let result;
+    if (genre) {
+      result = await client.query(
+        `SELECT COUNT(*) FROM ${table} WHERE genre='${genre}'`
+      );
+    } else {
+      result = await client.query(`SELECT COUNT(*) FROM ${table}`);
+    }
+    client.release();
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.get("/genres", async (req, res) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query(`SELECT DISTINCT genre FROM books`);
+    client.release();
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.get("/getBooks", async (req, res) => {
+  const limit = req.query.limit || 9;
+  const page = req.query.page || 1;
+  const genre = req.query.genre === "Filter" ? null : req.query.genre;
+  const offset = (page - 1) * limit;
+
+  try {
+    const client = await pool.connect();
+    let result;
+    if (genre) {
+      result = await client.query(
+        `SELECT * FROM books WHERE genre=$3 LIMIT $1 OFFSET $2`,
+        [limit, offset, genre]
+      );
+    } else {
+      result = await client.query(
+        `SELECT * FROM books ORDER BY id LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+    }
     client.release();
     res.json(result.rows);
   } catch (error) {
