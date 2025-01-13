@@ -77,7 +77,7 @@ app.get("/getBooks", async (req, res) => {
       );
     } else if (search && !genre) {
       result = await client.query(
-        `SELECT * FROM books WHERE title ~* $3 LIMIT $1 OFFSET $2`,
+        `SELECT * FROM books WHERE title ~* $3 OR author ~* $3 LIMIT $1 OFFSET $2`,
         [limit, offset, search]
       );
     } else if (genre && search) {
