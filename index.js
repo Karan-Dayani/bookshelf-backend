@@ -72,22 +72,22 @@ app.get("/getBooks", async (req, res) => {
     let result;
     if (genre && !search) {
       result = await client.query(
-        `SELECT * FROM books WHERE genre=$3 LIMIT $1 OFFSET $2`,
+        `SELECT * FROM books WHERE genre=$3 ORDER BY published_year DESC LIMIT $1 OFFSET $2`,
         [limit, offset, genre]
       );
     } else if (search && !genre) {
       result = await client.query(
-        `SELECT * FROM books WHERE title ~* $3 OR author ~* $3 LIMIT $1 OFFSET $2`,
+        `SELECT * FROM books WHERE title ~* $3 OR author ~* $3 ORDER BY published_year DESC LIMIT $1 OFFSET $2`,
         [limit, offset, search]
       );
     } else if (genre && search) {
       result = await client.query(
-        `SELECT * FROM books WHERE title ~* $3 AND genre=$4 LIMIT $1 OFFSET $2`,
+        `SELECT * FROM books WHERE title ~* $3 AND genre=$4 ORDER BY published_year DESC LIMIT $1 OFFSET $2`,
         [limit, offset, search, genre]
       );
     } else {
       result = await client.query(
-        `SELECT * FROM books ORDER BY id LIMIT $1 OFFSET $2`,
+        `SELECT * FROM books ORDER BY published_year DESC LIMIT $1 OFFSET $2`,
         [limit, offset]
       );
     }
@@ -112,6 +112,22 @@ app.get("/getUser/:email", async (req, res) => {
     } else {
       res.json(result.rows);
     }
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/updateBook", async (req, res) => {
+  const { data } = req.body;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      `UPDATE books SET copies=$2, is_available=$3 WHERE id=$1;`,
+      [data.id, data.copies, data.availability]
+    );
+    client.release();
+    res.json({ updateStatus: "Success" });
   } catch (error) {
     console.error("Database error:", error);
     res.status(500).json({ error: "Internal Server Error" });
