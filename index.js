@@ -60,6 +60,18 @@ app.get("/genres", async (req, res) => {
   }
 });
 
+app.get("/getAllUsers", async (req, res) => {
+  try {
+    const client = await pool.connect();
+    const result = await client.query(`SELECT * FROM users ORDER BY id`);
+    client.release();
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.get("/getBooks", async (req, res) => {
   const limit = req.query.limit || 9;
   const page = req.query.page || 1;
@@ -126,6 +138,22 @@ app.post("/updateBook", async (req, res) => {
       `UPDATE books SET copies=$2, is_available=$3 WHERE id=$1;`,
       [data.id, data.copies, data.availability]
     );
+    client.release();
+    res.json({ updateStatus: "Success" });
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/updateUser", async (req, res) => {
+  const { data } = req.body;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(`UPDATE users SET role=$2 WHERE id=$1;`, [
+      data.id,
+      data.role,
+    ]);
     client.release();
     res.json({ updateStatus: "Success" });
   } catch (error) {
