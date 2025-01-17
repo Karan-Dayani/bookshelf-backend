@@ -22,23 +22,43 @@ app.get("/count/:table", async (req, res) => {
   const table = req.params.table;
   const genre = req.query.genre === "Filter" ? null : req.query.genre;
   const search = req.query.search === "" ? null : req.query.search;
+  const role = req.query.role === "All" ? null : req.query.role;
   try {
     const client = await pool.connect();
     let result;
-    if (genre && !search) {
-      result = await client.query(
-        `SELECT COUNT(*) FROM ${table} WHERE genre='${genre}'`
-      );
-    } else if (search && !genre) {
-      result = await client.query(
-        `SELECT COUNT(*) FROM ${table} WHERE title ~* '${search}'`
-      );
-    } else if (search && genre) {
-      result = await client.query(
-        `SELECT COUNT(*) FROM ${table} WHERE title ~* '${search}' AND genre='${genre}'`
-      );
-    } else {
-      result = await client.query(`SELECT COUNT(*) FROM ${table}`);
+
+    if (table === "users") {
+      if (role && !search) {
+        result = await client.query(
+          `SELECT COUNT(*) FROM users WHERE role='${role}'`
+        );
+      } else if (search && !role) {
+        result = await client.query(
+          `SELECT COUNT(*) FROM users WHERE name ~* '${search}'`
+        );
+      } else if (search && role) {
+        result = await client.query(
+          `SELECT COUNT(*) FROM users WHERE name ~* '${search}' AND role='${role}'`
+        );
+      } else {
+        result = await client.query(`SELECT COUNT(*) FROM users`);
+      }
+    } else if (table === "books") {
+      if (genre && !search) {
+        result = await client.query(
+          `SELECT COUNT(*) FROM books WHERE genre='${genre}'`
+        );
+      } else if (search && !genre) {
+        result = await client.query(
+          `SELECT COUNT(*) FROM books WHERE title ~* '${search}'`
+        );
+      } else if (search && genre) {
+        result = await client.query(
+          `SELECT COUNT(*) FROM books WHERE title ~* '${search}' AND genre='${genre}'`
+        );
+      } else {
+        result = await client.query(`SELECT COUNT(*) FROM books`);
+      }
     }
     client.release();
     res.json(result.rows);
@@ -61,9 +81,35 @@ app.get("/genres", async (req, res) => {
 });
 
 app.get("/getAllUsers", async (req, res) => {
+  const search = req.query.search === "" ? null : req.query.search;
+  const role = req.query.role === "All" ? null : req.query.role;
+  const limit = req.query.limit || 10;
+  const page = req.query.page || 1;
+  const offset = (page - 1) * limit;
   try {
     const client = await pool.connect();
-    const result = await client.query(`SELECT * FROM users ORDER BY id`);
+    let result;
+    if (search && !role) {
+      result = await client.query(
+        `SELECT * FROM users WHERE name ~* $1 ORDER BY id LIMIT $2 OFFSET $3`,
+        [search, limit, offset]
+      );
+    } else if (role && !search) {
+      result = await client.query(
+        `SELECT * FROM users WHERE role = $1 ORDER BY id LIMIT $2 OFFSET $3`,
+        [role, limit, offset]
+      );
+    } else if (role && search) {
+      result = await client.query(
+        `SELECT * FROM users WHERE role = $1 AND name ~* $2 ORDER BY id LIMIT $3 OFFSET $4`,
+        [role, search, limit, offset]
+      );
+    } else {
+      result = await client.query(
+        `SELECT * FROM users ORDER BY id LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+    }
     client.release();
     res.json(result.rows);
   } catch (error) {
