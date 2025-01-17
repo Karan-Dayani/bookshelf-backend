@@ -249,6 +249,19 @@ app.post("/addBook", async (req, res) => {
   }
 });
 
+app.post("/removeBook/:id", async (req, res) => {
+  const id = req.params.id;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(`DELETE FROM books WHERE id = $1`, [id]);
+    client.release();
+    res.json({ removeStatus: "Success" });
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.listen(port, () => {
   console.log("Server started at", port);
 });
