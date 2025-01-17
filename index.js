@@ -224,6 +224,31 @@ app.post("/createUser", async (req, res) => {
   }
 });
 
+app.post("/addBook", async (req, res) => {
+  const { data } = req.body;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      `INSERT INTO books (title, description, author, genre, isbn, published_year, copies, is_available) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+      [
+        data.title,
+        data.description,
+        data.author,
+        data.genre,
+        data.isbn,
+        data.published_year,
+        data.copies,
+        data.is_available,
+      ]
+    );
+    client.release();
+    res.json({ addStatus: "Success" });
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.listen(port, () => {
   console.log("Server started at", port);
 });
