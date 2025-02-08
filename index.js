@@ -262,6 +262,31 @@ app.post("/removeBook/:id", async (req, res) => {
   }
 });
 
+app.post("/requestBook", async (req, res) => {
+  const { data } = req.body;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      `INSERT INTO Borrowing (user_id, book_id, status) 
+      SELECT $1, $2, 'requested'
+      FROM Books 
+      WHERE id = $2 AND is_available = TRUE
+      RETURNING *;
+`,
+      [data.userId, data.bookId]
+    );
+    client.release();
+    res.json({ reqStatus: "Success" });
+  } catch (error) {
+    console.error("Database error:", error);
+    if (error.code === "23505") {
+      res.status(409).json({ error: "Book already requested" });
+    } else {
+      res.status(500).json({ error: "Internal Server Error" });
+    }
+  }
+});
+
 app.listen(port, () => {
   console.log("Server started at", port);
 });
