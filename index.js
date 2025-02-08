@@ -157,6 +157,27 @@ app.get("/getBooks", async (req, res) => {
   }
 });
 
+app.get("/usersBooks/:userId", async (req, res) => {
+  const userId = req.params.userId;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      `SELECT 
+        b.*, 
+        to_jsonb(bo) AS book_details
+      FROM Borrowing b
+      JOIN Books bo ON b.book_id = bo.id
+      WHERE b.user_id = $1`,
+      [userId]
+    );
+    client.release();
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.get("/getUser/:email", async (req, res) => {
   const email = req.params.email;
   try {
@@ -266,6 +287,26 @@ app.post("/requestBook", async (req, res) => {
   const { data } = req.body;
   try {
     const client = await pool.connect();
+
+    const borrowCountResult = await client.query(
+      `SELECT COUNT(*) AS active_borrowings 
+       FROM Borrowing 
+       WHERE user_id = $1 AND return_date IS NULL;`,
+      [data.userId]
+    );
+
+    const activeBorrowings = parseInt(
+      borrowCountResult.rows[0].active_borrowings,
+      10
+    );
+
+    if (activeBorrowings >= 3) {
+      client.release();
+      return res
+        .status(400)
+        .json({ error: "User cannot borrow more than 3 books at a time." });
+    }
+
     const result = await client.query(
       `INSERT INTO Borrowing (user_id, book_id, status) 
       SELECT $1, $2, 'requested'
