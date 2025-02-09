@@ -18,6 +18,7 @@ const pool = new Pool({
   database: process.env.DB_NAME,
 });
 
+//* COUNT
 app.get("/count/:table", async (req, res) => {
   const table = req.params.table;
   const genre = req.query.genre === "Filter" ? null : req.query.genre;
@@ -72,6 +73,7 @@ app.get("/count/:table", async (req, res) => {
   }
 });
 
+//* Genres for all books
 app.get("/genres", async (req, res) => {
   try {
     const client = await pool.connect();
@@ -84,44 +86,7 @@ app.get("/genres", async (req, res) => {
   }
 });
 
-app.get("/getAllUsers", async (req, res) => {
-  const search = req.query.search === "" ? null : req.query.search;
-  const role = req.query.role === "All" ? null : req.query.role;
-  const limit = req.query.limit || 10;
-  const page = req.query.page || 1;
-  const offset = (page - 1) * limit;
-  try {
-    const client = await pool.connect();
-    let result;
-    if (search && !role) {
-      result = await client.query(
-        `SELECT * FROM users WHERE name ~* $1 ORDER BY id LIMIT $2 OFFSET $3`,
-        [search, limit, offset]
-      );
-    } else if (role && !search) {
-      result = await client.query(
-        `SELECT * FROM users WHERE role = $1 ORDER BY id LIMIT $2 OFFSET $3`,
-        [role, limit, offset]
-      );
-    } else if (role && search) {
-      result = await client.query(
-        `SELECT * FROM users WHERE role = $1 AND name ~* $2 ORDER BY id LIMIT $3 OFFSET $4`,
-        [role, search, limit, offset]
-      );
-    } else {
-      result = await client.query(
-        `SELECT * FROM users ORDER BY id LIMIT $1 OFFSET $2`,
-        [limit, offset]
-      );
-    }
-    client.release();
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Database error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
+//* Books
 app.get("/getBooks", async (req, res) => {
   const limit = req.query.limit || 9;
   const page = req.query.page || 1;
@@ -182,52 +147,6 @@ app.get("/usersBooks/:userId", async (req, res) => {
   }
 });
 
-app.get("/getRequests", async (req, res) => {
-  const limit = req.query.limit || 10;
-  const page = req.query.page || 1;
-  const offset = (page - 1) * limit;
-  try {
-    const client = await pool.connect();
-    const result = await client.query(
-      `SELECT 
-        b.*, 
-        to_jsonb(bo) AS book_details,
-        to_jsonb(u) AS user_details
-      FROM Borrowing b
-      JOIN Books bo ON b.book_id = bo.id
-      JOIN Users u ON b.user_id = u.id
-      WHERE b.status = 'requested'
-      ORDER BY id
-      LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
-    client.release();
-    res.json(result.rows);
-  } catch (error) {
-    console.error("Database error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-app.get("/getUser/:email", async (req, res) => {
-  const email = req.params.email;
-  try {
-    const client = await pool.connect();
-    const result = await client.query(`SELECT * FROM users WHERE email = $1`, [
-      email,
-    ]);
-    client.release();
-    if (result.rows.length === 0) {
-      res.json(null);
-    } else {
-      res.json(result.rows);
-    }
-  } catch (error) {
-    console.error("Database error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
 app.post("/updateBook", async (req, res) => {
   const { data } = req.body;
   try {
@@ -238,38 +157,6 @@ app.post("/updateBook", async (req, res) => {
     );
     client.release();
     res.json({ updateStatus: "Success" });
-  } catch (error) {
-    console.error("Database error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-app.post("/updateUser", async (req, res) => {
-  const { data } = req.body;
-  try {
-    const client = await pool.connect();
-    const result = await client.query(`UPDATE users SET role=$2 WHERE id=$1;`, [
-      data.id,
-      data.role,
-    ]);
-    client.release();
-    res.json({ updateStatus: "Success" });
-  } catch (error) {
-    console.error("Database error:", error);
-    res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-app.post("/createUser", async (req, res) => {
-  const { data } = req.body;
-  try {
-    const client = await pool.connect();
-    const result = await client.query(
-      `INSERT INTO users (name, email, role) VALUES ($1,$2,$3)`,
-      [data.name, data.email, data.role]
-    );
-    client.release();
-    res.json(result.rows);
   } catch (error) {
     console.error("Database error:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -308,6 +195,124 @@ app.post("/removeBook/:id", async (req, res) => {
     const result = await client.query(`DELETE FROM books WHERE id = $1`, [id]);
     client.release();
     res.json({ removeStatus: "Success" });
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+//* Users
+app.get("/getAllUsers", async (req, res) => {
+  const search = req.query.search === "" ? null : req.query.search;
+  const role = req.query.role === "All" ? null : req.query.role;
+  const limit = req.query.limit || 10;
+  const page = req.query.page || 1;
+  const offset = (page - 1) * limit;
+  try {
+    const client = await pool.connect();
+    let result;
+    if (search && !role) {
+      result = await client.query(
+        `SELECT * FROM users WHERE name ~* $1 ORDER BY id LIMIT $2 OFFSET $3`,
+        [search, limit, offset]
+      );
+    } else if (role && !search) {
+      result = await client.query(
+        `SELECT * FROM users WHERE role = $1 ORDER BY id LIMIT $2 OFFSET $3`,
+        [role, limit, offset]
+      );
+    } else if (role && search) {
+      result = await client.query(
+        `SELECT * FROM users WHERE role = $1 AND name ~* $2 ORDER BY id LIMIT $3 OFFSET $4`,
+        [role, search, limit, offset]
+      );
+    } else {
+      result = await client.query(
+        `SELECT * FROM users ORDER BY id LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
+    }
+    client.release();
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.get("/getUser/:email", async (req, res) => {
+  const email = req.params.email;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(`SELECT * FROM users WHERE email = $1`, [
+      email,
+    ]);
+    client.release();
+    if (result.rows.length === 0) {
+      res.json(null);
+    } else {
+      res.json(result.rows);
+    }
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/updateUser", async (req, res) => {
+  const { data } = req.body;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(`UPDATE users SET role=$2 WHERE id=$1;`, [
+      data.id,
+      data.role,
+    ]);
+    client.release();
+    res.json({ updateStatus: "Success" });
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/createUser", async (req, res) => {
+  const { data } = req.body;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      `INSERT INTO users (name, email, role) VALUES ($1,$2,$3)`,
+      [data.name, data.email, data.role]
+    );
+    client.release();
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+//* Borrowing
+app.get("/getRequests", async (req, res) => {
+  const limit = req.query.limit || 10;
+  const page = req.query.page || 1;
+  const offset = (page - 1) * limit;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      `SELECT 
+        b.*, 
+        to_jsonb(bo) AS book_details,
+        to_jsonb(u) AS user_details
+      FROM Borrowing b
+      JOIN Books bo ON b.book_id = bo.id
+      JOIN Users u ON b.user_id = u.id
+      WHERE b.status = 'requested'
+      ORDER BY id
+      LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    client.release();
+    res.json(result.rows);
   } catch (error) {
     console.error("Database error:", error);
     res.status(500).json({ error: "Internal Server Error" });
@@ -356,6 +361,22 @@ app.post("/requestBook", async (req, res) => {
     } else {
       res.status(500).json({ error: "Internal Server Error" });
     }
+  }
+});
+
+app.post("/approveRequests", async (req, res) => {
+  const { data } = req.body;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      `UPDATE borrowing SET status='borrowed' WHERE id=$1;`,
+      [data.requestId]
+    );
+    client.release();
+    res.json({ ApprovalStatus: "Success" });
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
