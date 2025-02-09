@@ -369,7 +369,7 @@ app.post("/approveRequests", async (req, res) => {
   try {
     const client = await pool.connect();
     const result = await client.query(
-      `UPDATE borrowing SET status='borrowed' WHERE id=$1;`,
+      `UPDATE borrowing SET status='borrowed', issue_date=CURRENT_DATE, due_date=CURRENT_DATE + INTERVAL '10 days' WHERE id=$1;`,
       [data.requestId]
     );
     client.release();
