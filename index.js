@@ -59,6 +59,10 @@ app.get("/count/:table", async (req, res) => {
       } else {
         result = await client.query(`SELECT COUNT(*) FROM books`);
       }
+    } else if (table === "requests") {
+      result = await client.query(
+        `SELECT COUNT(*) FROM borrowing WHERE status = 'requested'`
+      );
     }
     client.release();
     res.json(result.rows);
@@ -169,6 +173,33 @@ app.get("/usersBooks/:userId", async (req, res) => {
       JOIN Books bo ON b.book_id = bo.id
       WHERE b.user_id = $1`,
       [userId]
+    );
+    client.release();
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.get("/getRequests", async (req, res) => {
+  const limit = req.query.limit || 10;
+  const page = req.query.page || 1;
+  const offset = (page - 1) * limit;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(
+      `SELECT 
+        b.*, 
+        to_jsonb(bo) AS book_details,
+        to_jsonb(u) AS user_details
+      FROM Borrowing b
+      JOIN Books bo ON b.book_id = bo.id
+      JOIN Users u ON b.user_id = u.id
+      WHERE b.status = 'requested'
+      ORDER BY id
+      LIMIT $1 OFFSET $2`,
+      [limit, offset]
     );
     client.release();
     res.json(result.rows);
