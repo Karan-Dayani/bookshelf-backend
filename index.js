@@ -380,6 +380,21 @@ app.post("/approveRequests", async (req, res) => {
   }
 });
 
+app.post("/cancelRequest", async (req, res) => {
+  const { data } = req.body;
+  try {
+    const client = await pool.connect();
+    const result = await client.query(`DELETE FROM borrowing WHERE id=$1;`, [
+      data.requestId,
+    ]);
+    client.release();
+    res.json({ cancelStatus: "Success" });
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 app.listen(port, () => {
   console.log("Server started at", port);
 });
