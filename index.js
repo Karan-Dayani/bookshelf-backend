@@ -18,6 +18,13 @@ const pool = new Pool({
   database: process.env.DB_NAME,
 });
 
+// const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL,
+//   // ssl: {
+//   //   rejectUnauthorized: false, // Required for some cloud providers
+//   // },
+// });
+
 //* COUNT
 app.get("/count/:table", async (req, res) => {
   const table = req.params.table;
@@ -389,6 +396,56 @@ app.post("/cancelRequest", async (req, res) => {
     ]);
     client.release();
     res.json({ cancelStatus: "Success" });
+  } catch (error) {
+    console.error("Database error:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+app.post("/returnBook", async (req, res) => {
+  const { data } = req.body;
+  const currDate = new Date(); // Current date for return
+  try {
+    const client = await pool.connect();
+
+    // Step 1: Fetch borrowing details
+    const borrowResult = await client.query(
+      `SELECT due_date, book_id FROM Borrowing WHERE id = $1 AND return_date IS NULL;`,
+      [data.borrowId]
+    );
+
+    if (borrowResult.rowCount === 0) {
+      client.release();
+      return res.status(404).json({
+        error: "Borrowing record not found or book already returned.",
+      });
+    }
+
+    const { due_date, book_id } = borrowResult.rows[0];
+
+    // Step 2: Calculate fine (₹10 per day if overdue)
+    const dueDate = new Date(due_date);
+    let fine = 0;
+
+    if (currDate > dueDate) {
+      const diffDays = Math.ceil((currDate - dueDate) / (1000 * 60 * 60 * 24)); // Difference in days
+      fine = diffDays * 10; // ₹10 fine per day
+    }
+
+    // Step 3: Update borrowing record with return_date and fine
+    await client.query(
+      `UPDATE Borrowing 
+       SET return_date = $1, fine = $2, status='returned'
+       WHERE id = $3;`,
+      [currDate, fine, data.borrowId]
+    );
+
+    client.release();
+    res.json({
+      returnStatus: "Success",
+      message: "Book returned successfully",
+      fine,
+    });
   } catch (error) {
     console.error("Database error:", error);
     res.status(500).json({ error: "Internal Server Error" });
